@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Linq;
 
 namespace Tabler
 {
@@ -12,15 +13,37 @@ namespace Tabler
     /// <typeparam name="T"></typeparam>
     public class TextTableBuilder<T> where T: class
     {
-        private StreamWriter Output { get; set; }
-        private Table Table { get; } = new Table();
+        private KeyList Table { get; } = new KeyList();
+        private Dictionary<string, MemberInfo> ReflectionCache = new Dictionary<string, MemberInfo>();
+        private Type DataType;
+        private bool IsCached { get; set; } = false;
+        private StreamWriter OutputStream { get; set; }
 
         /// <summary>
         /// Sets the printing output stream
         /// </summary
         /// <returns></returns>
         public TextTableBuilder<T> SetOutput(StreamWriter sw) {
-            Output = sw;
+            OutputStream = sw;
+            return this;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public TextTableBuilder<T> Clear()
+        {
+            Table.Clear();
+            ReflectionCache.Clear();
+            DataType = null;
+            IsCached = false;
+            OutputStream = null;
+            return this;
+        }
+
+        public TextTableBuilder<T> SetHeaders(params string[] headers)
+        {
+            Table.SetHeaders(headers);
             return this;
         }
 
@@ -31,53 +54,76 @@ namespace Tabler
         /// </summary>
         /// <returns></returns>
         public TextTableBuilder<T> AddObject(T o) {
-            Type type = o.GetType();
+            if (!IsCached)
+                CacheBy(o);
 
-            foreach (var member in type.GetMembers()) {
-                switch (member.MemberType) {
-                    case MemberTypes.Property:
-                        var prop = member as PropertyInfo;
-                        Table.AddToColumn(prop.Name, prop.GetValue(o).ToString());
-                        break;
-                    case MemberTypes.Field:
-                        var field = member as FieldInfo;
-                        Table.AddToColumn(field.Name, field.GetValue(o).ToString());
-                        break;
+            if (this.IsCached && DataType == o.GetType())
+            {
+                for(int i = 0; i < Table.Keys.Count; i++)
+                {
+                    MemberInfo currentInfo = ReflectionCache[Table.Keys[i]];
+                    switch (currentInfo.MemberType)
+                    {
+                        case MemberTypes.Property:
+                            var prop = currentInfo as PropertyInfo;
+                            Table.AddToColumn(prop.Name, prop.GetValue(o).ToString());
+                            break;
+                        case MemberTypes.Field:
+                            var field = currentInfo as FieldInfo;
+                            Table.AddToColumn(field.Name, field.GetValue(o).ToString());
+                            break;
+                    }
                 }
+
             }
             return this;
         }
 
+        /// <summary>
+        /// Identifies the relevant (public and instanced) fields and properties, sorts them by order of declaration.
+        /// Caches the reflection data for future use.
+        /// </summary>
+        /// <param name="o"></param>
+        private void CacheBy(T o)
+        {
+            this.DataType = o.GetType();
+            // GetMembers does not necessarily acquire fields and properties in the way they are declared.
+            // Although officially somewhat discouraged, sorting by MetadataToken is a fairly reliable way of getting the order correct.
+            foreach (MemberInfo member in DataType.GetMembers().Where(x => x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Field).OrderBy(x => x.MetadataToken))
+            {
+                Table.Add(member.Name, new List<string>());
+                ReflectionCache.Add(member.Name, member);
+            }
+            this.IsCached = true;
+        }
 
         public TextTableBuilder<T> AddObjects(IEnumerable<T> objects) {
-            foreach (var o in objects) {
+            foreach (var o in objects)
                 this.AddObject(o);
-            }
             return this;
         }
 
         /// <summary>
         /// Prints a table to output stream writter.
         /// </summary>
-        public void Print() {
-            var columnFormats = new List<string>();
-            foreach (var key in Table.Keys) {
-                var len = Table.GetLongestElementOfColumn(key).Length;
-                
+        public void PrintToStream() {
+            List<string> columnFormats = new List<string>();
+            foreach (string key in Table.Keys) {
+                int len = Table.GetLongestElementOfColumn(key).Length;
                 // format my format, baby!
                 columnFormats.Add(String.Format("{{0,{0}}}|", len));
             }
-            var header = new String('-', Table.HeaderLength);
-            Output.WriteLine(header);
+            string header = new String('-', Table.HeaderLength());
+            OutputStream.WriteLine(header);
             foreach (var row in Table.Rows) {
                 var index = 0;
-                Output.Write('|');
+                OutputStream.Write('|');
                 foreach (var element in row) {
-                    Output.Write(String.Format(columnFormats[index], element));
+                    OutputStream.Write(String.Format(columnFormats[index], element));
                     index++;
                 }
-                Output.WriteLine();
-                Output.WriteLine(header);
+                OutputStream.WriteLine();
+                OutputStream.WriteLine(header);
             }
         }
     }
