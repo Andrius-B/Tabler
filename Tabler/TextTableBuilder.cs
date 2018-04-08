@@ -75,19 +75,26 @@ namespace Tabler
                 for(int i = 0; i < Table.Keys.Count; i++)
                 {
                     MemberInfo currentInfo = ReflectionCache[Table.Keys[i]];
+                    var foundKey = "";
                     switch (currentInfo.MemberType)
                     {
                         case MemberTypes.Property:
                             var prop = currentInfo as PropertyInfo;
                             Table.AddToColumn(prop.Name, prop.GetValue(o).ToString());
+                            foundKey = prop.Name;
                             break;
                         case MemberTypes.Field:
                             var field = currentInfo as FieldInfo;
                             Table.AddToColumn(field.Name, field.GetValue(o).ToString());
+                            foundKey = field.Name;
                             break;
                     }
-                }
 
+                    var attribute = (TableColumn)currentInfo.GetCustomAttribute(typeof(TableColumn), false);
+                    if (attribute != null && attribute.HeaderSet) {
+                        Table.SetHeader(foundKey, attribute.Header);
+                    }
+                }
             }
             return this;
         }

@@ -28,7 +28,7 @@ namespace TableTester
                     .AddObject(d) //note : the order of adding items matters!
                     .AddObjects(list)// they appear in the table as are added here
                     .SetOutput(sw)
-                    .SetHeaders("Test1", "Test2", "Test3")
+                    //.SetHeaders("Test1", "Test2", "Test3")
                     .SetHeader(f=>f.TestProp2VeryLongName_Is_Still_Not_cool, "ChangedHeader")
                     .PrintToStream();
             s.Stop();
@@ -62,11 +62,11 @@ namespace TableTester
     /// </summary>
     class DataClass
     {
-
         public string TestField = "Hello world!";
 
         public float TestProp2VeryLongName_Is_Still_Not_cool { get; private set; } = 5;
 
+        [TableColumn("Sick new header fam!!!")]
         public float TestProp { get; set; } = 10;
 
     }
