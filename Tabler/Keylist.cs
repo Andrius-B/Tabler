@@ -17,20 +17,40 @@ namespace Tabler
         /// 
         /// </summary>
         new public List<string> Keys { get; private set; }
+
         /// <summary>
-        /// A string list for storing custom headers for the flags and properties.
+        /// A header dictionary, basically saying that
+        /// specific keys are to be called by specific names from this dictionary
         /// </summary>
-        public List<string> Headers { get; private set; }
+        /// <remarks>
+        /// Layout of this dictionary is <string Key, string Header>
+        /// </remarks>
+        private Dictionary<string, string> HeadersDict { get; set; }
+
         /// <summary>
-        /// A flag for marking if fancier headers were provided.
+        /// Public access for the internal header dictionary
         /// </summary>
-        public bool HeadersSet { get; private set; }
+        /// <remarks>
+        /// This might contain actual headers, or just the same key names,
+        /// depending on what was set, and the intended use is in the table headers
+        /// </remarks>
+        public List<string> Headers {
+            get {
+                var list = new List<string>();
+                foreach (var key in Keys) {
+                    list.Add(GetHeaderForKey(key));
+                }
+                return list;
+            }
+        }
+
         /// <summary>
         /// Iterator for the rows of this table
         /// </summary>
         public RowEnum Rows { get; private set; }
+
         /// <summary>
-        /// 
+        /// Sets a list of headers for the table
         /// </summary>
         /// <param name="headers"></param>
         public void SetHeaders(params string[] headers)
@@ -39,19 +59,24 @@ namespace Tabler
                 throw new Exception("Mismatch between the number of columns in the table and the number of headers provided");
             else
             {
-                Headers.Clear();
-                Headers.AddRange(headers);
+                HeadersDict.Clear();
+                for (int i = 0; i < Keys.Count; i++) {
+                    HeadersDict.Add(Keys[i], headers[i]);
+                }
             }
-            HeadersSet = true;
         }
+
+        public void SetHeader(string key, string header) {
+            HeadersDict[key] = header;
+        }
+
         /// <summary>
         /// Wipes the KeyList to a blank state.
         /// </summary>
         new public void Clear()
         {
-            Keys = new List<string>();
-            Headers = new List<string>();
-            HeadersSet = false;
+            Keys.Clear();
+            HeadersDict.Clear();
             Rows = new RowEnum(this);
         }
         /// <summary>
@@ -60,8 +85,7 @@ namespace Tabler
         public KeyList()
         {
             Keys = new List<string>();
-            Headers = new List<string>();
-            HeadersSet = false;
+            HeadersDict = new Dictionary<string, string>();
             Rows = new RowEnum(this);
         }
         /// <summary>
@@ -118,7 +142,7 @@ namespace Tabler
         /// <summary>
         /// The length of the header, including padding chars for each element.
         /// </summary>
-        public int HeaderLength() {
+        public int TableHeaderLength() {
             var totalLength = 1; //assume padding
                 foreach (var key in this.Keys) {
                     totalLength += GetLongestElementOfColumn(key).Length + 1; // assume padding of '|'
@@ -127,14 +151,11 @@ namespace Tabler
         }
         /// <summary>
         /// Fetches the longest element in the column.
+        /// (Used for setting the approrpiate format padding)
         /// </summary>
         public string GetLongestElementOfColumn(string columnName)
         {
-            string longestElem = "";
-            if (HeadersSet)
-                longestElem = Headers[Keys.IndexOf(columnName)];
-            else
-                longestElem = columnName;
+            string longestElem = GetHeaderForKey(columnName);
             foreach (string element in this[columnName])
             {
                 string currentElem = element.ToString();
@@ -143,6 +164,17 @@ namespace Tabler
             }
             return longestElem;
         }
+
+        public string GetHeaderForKey(string columnKey) {
+            if (HeadersDict.ContainsKey(columnKey))
+            {
+                return HeadersDict[columnKey];
+            }
+            else {
+                return columnKey;
+            }
+        }
+
         /// <summary>
         /// A private class to enumerate over the rows of the table
         /// Just to add some syntax sugar and make the foreach look nice
@@ -155,7 +187,7 @@ namespace Tabler
             }
             public IEnumerator<List<string>> GetEnumerator()
             {
-                yield return T.Keys;
+                yield return T.Headers;
                 var i = 0;
                 while (i < T.RowCount)
                 {

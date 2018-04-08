@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace Tabler
 {
@@ -44,6 +45,18 @@ namespace Tabler
         public TextTableBuilder<T> SetHeaders(params string[] headers)
         {
             Table.SetHeaders(headers);
+            return this;
+        }
+
+        /// <summary>
+        /// Sets a header by a property selection,
+        /// to have some help while typing the field names
+        /// and not rely on ordering
+        /// </summary>
+        public TextTableBuilder<T> SetHeader<TKey>(Expression<Func<T,  TKey>> keySelector, string header) {
+            //this works by parsing the lambda expression argument
+            var key = ((MemberExpression)keySelector.Body).Member.Name;
+            Table.SetHeader(key, header);
             return this;
         }
 
@@ -113,7 +126,7 @@ namespace Tabler
                 // format my format, baby!
                 columnFormats.Add(String.Format("{{0,{0}}}|", len));
             }
-            string header = new String('-', Table.HeaderLength());
+            string header = new String('-', Table.TableHeaderLength());
             OutputStream.WriteLine(header);
             foreach (var row in Table.Rows) {
                 var index = 0;
