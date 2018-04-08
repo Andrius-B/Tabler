@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Tabler;
 
@@ -9,7 +10,8 @@ namespace TableTester
     {
         static void Main(string[] args)
         {
-            
+            Stopwatch s = new Stopwatch();
+            s.Start();
             /**
              * Data prep
              */
@@ -26,8 +28,9 @@ namespace TableTester
                     .AddObject(d) //note : the order of adding items matters!
                     .AddObjects(list)// they appear in the table as are added here
                     .SetOutput(sw)
-                    .Print();
-
+                    .PrintToStream();
+            s.Stop();
+            Console.WriteLine("Test completed in {0}ms!!", s.ElapsedMilliseconds);
             Console.ReadKey();
         }
 
@@ -39,7 +42,7 @@ namespace TableTester
             var r = new Random();
             var list = new List<DataClass>();
             var i = 0;
-            while (i < 10) {
+            while (i < 30) {
                 list.Add(
                     new DataClass() {
                         TestField = "Generated",
